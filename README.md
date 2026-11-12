@@ -78,6 +78,7 @@ setup.sh, env.sh   PCBWorld installation and the environment of every command be
 ## Setup
 
 Requirements: Linux x86_64, Python 3.12, one CUDA GPU for training and evaluation. Generation and replay run on CPU.
+Use a conda with the libmamba solver (conda 23.10 or later) or mamba: the classic solver takes hours on this environment.
 
 **Install**
 
@@ -124,6 +125,8 @@ To rebuild them:
 python cadet/stats/make_d3_half_split.py --out /tmp/split.json --lists-dir /tmp      # rebuild the split
 python cadet/stats/fit_board_params.py --split test --out /tmp/d3b_test_half.json    # extract statistics
 ```
+
+`d3b_fit_half.json` is the file the paper's RouteDemos was generated from. A rebuild with `--split fit` differs from it on two round boards (`0271_devttys0_IRis`, `0317_DerKnopf_led-ring`): the script now takes the full extent of a circular outline, and the shipped file holds a smaller one.
 
 ### 2. RouteDemos generation and replay verification
 
