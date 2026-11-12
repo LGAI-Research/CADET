@@ -11,6 +11,8 @@ URL="${PCBWORLD_GIT_URL:-https://github.com/LGAI-Research/PCBWorld.git}"
 export PCBWORLD_ENV="${PCBWORLD_ENV:-cadet}"     # conda env of this installation; an existing `pcbworld` env is left alone
 if [ ! -d "$ROOT/pcb_world" ]; then
   git clone --recursive --branch "$TAG" "$URL" "$ROOT"
+  # v1.0.1 leaves nng unpinned; NNG 2 dropped the protocol headers that KiCad 9.0.8 includes, and the engine build fails.
+  sed -i 's/^  - nng$/  - nng<2/' "$ROOT/environment.yml"
   (cd "$ROOT" && bash tools/setup/setup_all.sh)      # conda env `$PCBWORLD_ENV`, engine build, import smoke
 fi
 echo "PCBWorld: $ROOT ($(git -C "$ROOT" describe --tags --always 2>/dev/null || echo unknown))"
