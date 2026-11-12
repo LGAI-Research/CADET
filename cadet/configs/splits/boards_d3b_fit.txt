@@ -1,0 +1,142 @@
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0102_ponyser-pcb_Ponyser/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0104_zx-sizif-512-wifi_sizif512-wifi/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0105_filament_extruder_sensor/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0107_fingerprint-with-esp32_quet van tay/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0109_kitspace_CH330/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0112_kicad_bbb-melzi/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0115_4N35-TTL-Serial-Optoisolator_4N35-TTL-Serial-Optoisolator/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0116_kitspace_power_supply/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0117_Hardware-done-with-kicad_AVRlearn/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0119_rotorcontrol_nanomount/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0120_hardware-designs_solar-harvester/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0123_uext-esp32_UEXT_ESP32/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0127_NeoWall_NeoWall/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0128_kitspace_4_switch_array/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0129_pi_plant_MCP3002/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0132_TPS63001-Breakout_TPS63001 Breakout 25x25/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0135_tinyFISH_tinyBRUSH/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0136_navelino-leaf_navelino-leaf/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0137_hardware-designs_soil-moisture-sensor/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0140_eBUS-Adapter_Groeger/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0142_kitspace_12_24_boost_converter/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0144_ottawa-badges-2016_ottawa-badge-tagger-2016/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0146_pulse_v1_pulse/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0147_LED_port-status_LED_port-status-CA/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0152_mechkeys_isp/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0153_6N137-TTL-Serial-Optoisolator_6N137-TTL-Serial-Optoisolator/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0155_ToslinkCNC_Toslink PlanetCNC ECO shield/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0157_DIYDAC_DIYDAC/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0159_CAL430FR_CAL430F_watch/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0161_spisolator_spisolator/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0162_AS5043-Encoder_sensor-board/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0164_yamsek.kicad_i2c_bridge_primary/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0166_Phased-Array-Microphone-using-FPGA_SateliteMicrophone/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0169_hardware-designs_energy-harvester/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0171_esp8266-external-temp-sensor_external-temp-sensor/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0172_Wkaku_wkaku/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0175_Youyue-858D-plus-FAN-speed-mod_youyue-858d-plus-fan-speed-mod/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0176_BirdAttractor_BirdAttractor_RevA/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0179_silverduino-board_kicad/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0180_beer-gauge_sensorboard/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0183_KiCad-Like-a-Pro-Tutorial_proj2-sevensegment/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0185_HES-V2__autosave-hes/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0187_esp8266_envmonitor_environment-monitor/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0189_AnalogThermometer_AnalogThermometer/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0191_deskbot_breakout/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0194_kitspace_postcard/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0197_RFM69HCW_ATSHA204A_Breakout_RFM69HCW_ATSHA204A_Breakout/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0198_RoBoC_CameraAdaptor/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0199_kitspace_USB-LED-Otter/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0201_hardware-designs_nixie-power/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0203_MOD-MPU9150_mod-mpu9150/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0204_RFM69-PowerMonitor_RFM69-PowerMonitor/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0207_cap-soil-moisture-v2_soil-moisture2x4/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0210_MAVRIC_Hardware_SoilBoard/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0212_kitspace_trans_switch_volt_amp/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0213_kika-in-space_DS8500/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0215_LED-grid-8x8_LED grid 8x8/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0217_esp8266_link_test_esp_micro85-only/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0219_tbd_tbd/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0221_akuhei_akuhei/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0222_xwhatits-capsense-controller_model-f-3178-adaptor/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0224_one-shift-register_one-shift-register/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0227_PWRmeter_PWMeter/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0231_Neptune-Hardware_DataAcquisitionBoard/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0233_KiCad-LTC6802-2_main/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0234_hm-mod-rpi-rtc_hm-mod-rpi-rtc/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0236_sv650sds_sds_tool/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0238_usb2serial-CH340G_USB2TTL-CH340G/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0239_bpnode-bb_BPnode-BB/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0241_FT231X_breakout_FTDI_FT231XS-U_Breakout/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0243_sonic3_feram_adapter_sonic3_feram_adapter/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0246_LongPixel_AnalogDriverMini/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0249_RN2483shield_RN2483shield/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0250_JLink-SWD_JLink-SWD/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0252_apa102lantern_apa102-lantern-side/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0255_audio_relay_input_switch_relay_switch/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0256_sms-cart-32k_cart/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0260_NiMH-Charger_NiMH Charger/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0261_Practicas-Curso-Kicad_Salguero_Federico2/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0264_Practicas-Curso-Kicad_Ejercicio_2/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0265_bobc_LCD-panel-adapter-lvc/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0266_m2-electronics_m2pa-tiny/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0268_m2-electronics_m2pa-instrument/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0271_devttys0_IRis/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0273_omega-dock-new_omega-dock-new/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0274_kitspace_OpenSpritzer_1.3/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0276_nan-15_top-plate/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0279_powerfreq-hardware_powerfreq/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0281_SynthDrumTrigger_Synth Drum Trigger/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0283_atmegax8-protoboard_atmegax8-protoboard/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0285_kitspace_Lcr_addon/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0287_OLD-Stepper-motor-board-design-project_Stepper motor driver/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0289_supply-ldo-adj-single_supply-ldo-adj-single/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0290_m2-electronics_m2rl/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0292_sb-serial-usb_ch340/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0294_esp8266-12f-board_esp8266/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0297_scimpy_crossover/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0298_kitspace_tt_nano_HAT_b1/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0300_type5_type5/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0301_flatpack2-adapter_EltekFlatpack2/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0306_pcb-ice40-vga_VGA expansion/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0308_LED-Square_PT4115_LED-Square_PT4115/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0310_rufs_smart_psu/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0311_soil-moisture-sensor-analog_analog-moist-sensor/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0312_S4A-Mini-board_s4a-mini-board/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0314_nikon_gps_nikon_gps/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0317_DerKnopf_led-ring/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0319_magic-table_etch-a-sketch_cyclone/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0320_kitspace_Arduino_uno_sheild/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0321_polearm-weapon_rod/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0324_nodemcu-backstage_NodeMCU Backstage/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0326_Atmel-ICE-Header-Adapter_ice header adapter pcb/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0328_SMDBreakouts_smd_breakout_quad/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0330_thegrid_pole/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0331_Planet_Vocab/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0333_gwurrbus_gwurrbus-relay/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0335_MAVRIC_Hardware_ArduinoPracticeBoard/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0338_shutter_Shutter V4/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0340_kitspace_Brk40p/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0341_vatx_vatx/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0343_clock_lcdb4/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0345_Paperino_HW_paperino_module/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0350_fuzzer_fuzzer/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0352_usb_rs232c_usb_rs232c_rev_a/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0353_RC2014_RC2014 IDE/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0356_kitspace_ideal_diode/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0357_kitspace_dynamixel_shield/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0359_kitspace_tt_nano_HAT_b2/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0361_phone_rtty_interface_phone_rtty_rev_b/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0362_prog-cc-100mA_prog-cc-100mA/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0364_scimpy_volumebuffer/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0368_Inkjet_InkjetDriver/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0371_Minitel_bbb-adapter/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0373_badge2016_Badge_init/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0374_light-painting-wand_light-wand/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0376_cat-trainer_teensy_base_pcb/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0378_airqualitystation_hardware/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0379_kicad-esp8266-led-shld_ESP8266_LED_shld/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0380_Minitel_driver_board/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0382_LT3652EvalBoard_LT3652EvalBoard/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0385_rgb-led_rgb-led-v2/processed_v9_guide_v3.kicad_pcb
+${PCBWORLD_DATA_ROOT}/pcbench/exacad_sorted/0386_onion2-breakout_onion2 breakout/processed_v9_guide_v3.kicad_pcb

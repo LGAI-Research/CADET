@@ -1,0 +1,20 @@
+# Reward rule the LLM rollouts ran under (it shapes the logged episode return only; the result tables score every
+# method post hoc with PCBWorld's pcbworld_reward).
+name: drc_dense_promoted_invpen01_wlnorm
+mode: per_step
+
+potential:
+  completion_bonus_log_scale: 1.0
+  unconnected_penalty: 1.0
+  wirelength_penalty: 0.3
+  wirelength_bbox_normalize: true
+  via_penalty: 0.0
+  wire_via_emission: per_step
+  drc_shape: log_per_net
+  drc_log_scale: 1.0
+  drc_log_agg_scale: 3.0
+  drc_log_offset: 2.0
+  step_penalty: 0.0
+  truncation_mode: none
+  drc_severity_mode: errors_and_promoted
+  invalid_action_penalty: 0.1

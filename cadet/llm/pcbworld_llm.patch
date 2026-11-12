@@ -1,0 +1,1335 @@
+diff --git a/configs/loader/schema.py b/configs/loader/schema.py
+index 0e0020f..0b14ebb 100644
+--- a/configs/loader/schema.py
++++ b/configs/loader/schema.py
+@@ -1068,6 +1068,10 @@ class LLMEnvConfig:
+     state_format: str = field(default=_LLM["env"]["state_format"], metadata={
+         "choices": ["sexpr", "xml"],
+         "help": "Observation serialization format (default: sexpr)."})
++    outline_obs: str | None = field(default=_LLM["env"]["outline_obs"], metadata={
++        "choices": ["poly16", "tess", "arc"],
++        "help": "Board-outline rendering in board_static ('tess' = short segments, "
++                "'arc' = one entry per arc; see env outline_obs). None = the env default."})
+     via_penalty: float | None = field(default=_LLM["env"]["via_penalty"], metadata={
+         "help": "Override reward-config via_penalty (default: use config)."})
+     reward_noise_std: float = field(default=_LLM["env"]["reward_noise_std"], metadata={
+@@ -1137,6 +1141,11 @@ class LLMRolloutConfig:
+     early_stop_no_progress: int = field(default=_LLM["rollout"]["early_stop_no_progress"], metadata={
+         "help": "Early-stop an env after this many consecutive non-progress steps "
+                 "(parse-error / mask-rejected / empty_action). 0 disables (default)."})
++    early_stop_no_geometry_progress: int = field(
++        default=_LLM["rollout"]["early_stop_no_geometry_progress"], metadata={
++            "help": "Early-stop an env after this many consecutive steps with no change "
++                    "in track/via count, wirelength or ratsnest (the RL eval's guard). "
++                    "0 disables (default)."})
+ 
+ 
+ @dataclass(frozen=True)
+@@ -1188,8 +1197,8 @@ class LLMAPIConfig:
+                 "ephemeral cache, ~90%% input cost reduction on hits)."})
+     api_reasoning_effort: str | None = field(default=_LLM["api"]["api_reasoning_effort"], metadata={
+         "choices": ["minimal", "low", "medium", "high"],
+-        "help": "Reasoning models (Qwen3 thinking on Together, gpt-5.x). 'low' "
+-                "shrinks chain-of-thought so it fits inside max_new_tokens."})
++        "help": "OpenAI reasoning models (o1/o3/o4/gpt-5/gpt-6): sent as "
++                "reasoning_effort. Any other provider/model rejects it at startup."})
+     api_disable_thinking: bool = field(default=_LLM["api"]["api_disable_thinking"], metadata={
+         "help": "Together (Qwen3 thinking models): pass "
+                 "chat_template_kwargs={enable_thinking: false} so the server skips "
+diff --git a/configs/pcbworld.yaml b/configs/pcbworld.yaml
+index 3bb8f00..af7bddb 100644
+--- a/configs/pcbworld.yaml
++++ b/configs/pcbworld.yaml
+@@ -330,6 +330,7 @@ llm:
+     reward_rule: grpo_final
+     corner_mode: 0
+     state_format: sexpr     # LLM-only: observation serialization (sexpr|xml)
++    outline_obs: null       # null = env.outline_obs; set tess/arc to pin the outline rendering
+     via_penalty: null       # override reward-config via_penalty (null = use config)
+     reward_noise_std: 0.0
+     emit_drc_tokens: true   # inverted CLI: --no_drc_tokens
+@@ -355,6 +356,7 @@ llm:
+     max_new_tokens: 256
+     dump_dir: null
+     early_stop_no_progress: 0
++    early_stop_no_geometry_progress: 0
+ 
+   vllm:                     # eval/args.py add_llm_args group
+     model_path: Qwen/Qwen2.5-VL-3B-Instruct
+diff --git a/methods/_shared/early_stop.py b/methods/_shared/early_stop.py
+new file mode 100644
+index 0000000..912040d
+--- /dev/null
++++ b/methods/_shared/early_stop.py
+@@ -0,0 +1,91 @@
++"""Early-stop guards shared by the RL rollout and the LLM rollout.
++
++Both guards read the geometry measures PCBWorld stamps into ``info``
++(track/via count, wirelength, ratsnest reduction). ``NoGeometryProgressGuard``
++counts consecutive steps in which none of them changed;
++``FinishNoProgressGuard`` counts failed ``finish`` attempts since the last
++change. ``update`` returns True once the count reaches ``threshold``
++(0 disables the guard).
++"""
++from __future__ import annotations
++
++import math
++from dataclasses import dataclass
++from typing import Any
++
++
++def _float_or_nan(value: Any) -> float:
++    try:
++        return float(value)
++    except (TypeError, ValueError):
++        return math.nan
++
++
++def _geometry_signature(info: dict[str, Any]) -> tuple[float, float, float, float] | None:
++    vals = (
++        _float_or_nan(info.get("track_count")),
++        _float_or_nan(info.get("via_count")),
++        _float_or_nan(info.get("wirelength")),
++        _float_or_nan(info.get("ratsnest_reduction")),
++    )
++    if all(math.isnan(v) for v in vals):
++        return None
++    return vals
++
++
++def _geometry_changed(
++    prev: tuple[float, float, float, float] | None,
++    cur: tuple[float, float, float, float] | None,
++) -> bool:
++    if prev is None or cur is None:
++        return False
++    for a, b in zip(prev, cur):
++        if math.isnan(a) or math.isnan(b):
++            continue
++        if abs(a - b) > 1e-9:
++            return True
++    return False
++
++
++@dataclass
++class FinishNoProgressGuard:
++    """Track consecutive ``finish`` attempts that failed without geometry change."""
++    threshold: int = 0
++    count: int = 0
++    last_geometry: tuple[float, float, float, float] | None = None
++
++    def update(
++        self, *, action_name: str, action_class: str, info: dict[str, Any],
++    ) -> bool:
++        cur = _geometry_signature(info)
++        if _geometry_changed(self.last_geometry, cur):
++            self.count = 0
++        if cur is not None:
++            self.last_geometry = cur
++        if action_name == "finish" and action_class in {
++            "valid_dispatch_fail", "valid_empty",
++        }:
++            self.count += 1
++        return self.threshold > 0 and self.count >= self.threshold
++
++
++@dataclass
++class NoGeometryProgressGuard:
++    """Track consecutive steps with no observed geometry metric change."""
++    threshold: int = 0
++    count: int = 0
++    last_geometry: tuple[float, float, float, float] | None = None
++
++    def update(self, *, info: dict[str, Any]) -> bool:
++        cur = _geometry_signature(info)
++        if cur is None:
++            return self.threshold > 0 and self.count >= self.threshold
++        if self.last_geometry is None:
++            self.last_geometry = cur
++            return False
++        if _geometry_changed(self.last_geometry, cur):
++            self.count = 0
++        else:
++            self.count += 1
++        self.last_geometry = cur
++        return self.threshold > 0 and self.count >= self.threshold
+diff --git a/methods/llm_agent/policy/model_provider.py b/methods/llm_agent/policy/model_provider.py
+index 110631f..dd3952e 100644
+--- a/methods/llm_agent/policy/model_provider.py
++++ b/methods/llm_agent/policy/model_provider.py
+@@ -30,9 +30,10 @@ from methods._shared.agent import PromptPair, TokenCounts
+ # Substrings that mark a transient (retryable) API failure. Matched against
+ # the exception's type name + message, case-insensitively, so it works across
+ # provider SDKs (OpenAI / Anthropic / Google / Together) without importing
+-# each one's exception classes. Permanent errors (bad request, auth, context
+-# length, model-not-found) are intentionally absent → they fall straight
+-# through to the idle fallback rather than wasting retries.
++# each one's exception classes. Permanent errors are intentionally absent:
++# credit / auth / model-access errors end the run (``_FATAL_API_MARKERS``
++# below); the rest (bad request, context length) fall straight through to the
++# idle fallback rather than wasting retries.
+ _TRANSIENT_API_MARKERS = (
+     "rate limit", "ratelimit", "429",
+     "timeout", "timed out",
+@@ -49,6 +50,28 @@ def _is_transient_api_error(exc: Exception) -> bool:
+     return any(m in blob for m in _TRANSIENT_API_MARKERS)
+ 
+ 
++# Substrings that mark an API failure no retry or idle step can fix: the
++# account is out of credit, the key is invalid, or the model is not available
++# to it. Checked before the transient markers — an out-of-credit error arrives
++# as a 429 RateLimitError, which would otherwise be retried and then replaced
++# by idle steps that the episode records as a routing failure.
++_FATAL_API_MARKERS = (
++    "insufficient_quota", "exceeded your current quota", "billing_hard_limit",
++    "invalid_api_key", "incorrect api key", "authenticationerror",
++    "permissiondeniederror", "model_not_found",
++)
++
++
++class FatalAPIError(RuntimeError):
++    """API failure that ends the run (credit / auth / model access)."""
++
++
++def _is_fatal_api_error(exc: Exception) -> bool:
++    """True if ``exc`` is an API failure that retrying cannot fix."""
++    blob = f"{type(exc).__name__} {exc}".lower()
++    return any(m in blob for m in _FATAL_API_MARKERS)
++
++
+ # ---------------------------------------------------------------------------
+ # vLLM provider
+ # ---------------------------------------------------------------------------
+@@ -146,8 +169,20 @@ _DEFAULT_API_MODELS = {
+ }
+ 
+ 
++# OpenAI reasoning models: sent as developer+user, with max_completion_tokens
++# and without temperature.
++_OPENAI_REASONING_PREFIXES = ("o1", "o3", "o4", "gpt-5", "gpt-6")
++
++
++def is_openai_reasoning_model(model: str) -> bool:
++    """True if ``model`` takes the OpenAI reasoning-model request shape."""
++    return model.startswith(_OPENAI_REASONING_PREFIXES)
++
++
+ def _call_openai(system_prompt, user_prompt, model, temperature, max_tokens,
+-                 api_key=None, base_url=None):
++                 api_key=None, base_url=None, reasoning_effort=None, on_usage=None):
++    """One chat completion. ``on_usage`` (optional) receives the raw
++    ``resp.usage`` object — APIProvider uses it for the cache/reasoning split."""
+     from openai import OpenAI
+     client_kwargs = {}
+     if api_key:
+@@ -158,7 +193,7 @@ def _call_openai(system_prompt, user_prompt, model, temperature, max_tokens,
+         client_kwargs["base_url"] = base_url
+     client = OpenAI(**client_kwargs)
+ 
+-    is_reasoning = any(model.startswith(p) for p in ("o1", "o3", "o4", "gpt-5"))
++    is_reasoning = is_openai_reasoning_model(model)
+     token_param = (
+         {"max_completion_tokens": max_tokens} if is_reasoning
+         else {"max_tokens": max_tokens}
+@@ -170,6 +205,8 @@ def _call_openai(system_prompt, user_prompt, model, temperature, max_tokens,
+             {"role": "user", "content": user_prompt},
+         ]
+         extra = {}
++        if reasoning_effort is not None:
++            extra["reasoning_effort"] = reasoning_effort
+     else:
+         messages = [
+             {"role": "system", "content": system_prompt},
+@@ -183,10 +220,22 @@ def _call_openai(system_prompt, user_prompt, model, temperature, max_tokens,
+         **extra,
+         **token_param,
+     )
++    if on_usage is not None:
++        on_usage(resp.usage)
+     choice = resp.choices[0]
+     return choice.message.content, (resp.usage.prompt_tokens, resp.usage.completion_tokens)
+ 
+ 
++def _usage_int(obj, *names):
++    """First int attribute of ``obj`` among ``names`` (the SDK keeps fields it has
++    no type for as extras, so newer usage fields are reachable by name), else None."""
++    for name in names:
++        value = getattr(obj, name, None) if obj is not None else None
++        if isinstance(value, int):
++            return value
++    return None
++
++
+ def _call_anthropic(system_prompt, user_prompt, model, temperature, max_tokens, api_key=None):
+     from anthropic import Anthropic
+     client = Anthropic(**({"api_key": api_key} if api_key else {}))
+@@ -277,9 +326,68 @@ class APIProvider:
+         self.temperature = args.temperature
+         self.max_new_tokens = args.max_new_tokens
+         self.api_key = args.api_key
++        # Validated here, not per call: an error raised inside the call loop
++        # below would be swallowed into the idle fallback.
++        self._provider = args.api_provider
++        self.reset_usage()
++        self.reasoning_effort = getattr(args, "api_reasoning_effort", None)
++        if self.reasoning_effort is not None and not (
++            args.api_provider == "openai" and is_openai_reasoning_model(self.model)
++        ):
++            raise ValueError(
++                f"api_reasoning_effort={self.reasoning_effort!r} applies only to "
++                f"OpenAI reasoning models ({', '.join(_OPENAI_REASONING_PREFIXES)}); "
++                f"got api_provider={args.api_provider!r}, model={self.model!r}"
++            )
++
++    # -- token accounting (written per board as token_usage.json by the rollout) --
++
++    def reset_usage(self) -> None:
++        self._usage = dict.fromkeys(
++            ("calls", "failed_calls", "input_tokens", "cached_input_tokens",
++             "cache_write_tokens", "output_tokens", "reasoning_tokens"), 0)
++        self._cache_write_seen = False
++        self._usage_logged = False
++
++    def _record_openai_usage(self, usage) -> None:
++        """Cache hits / cache writes / reasoning tokens of one OpenAI response."""
++        if not self._usage_logged:
++            dump = getattr(usage, "model_dump", None)
++            print(f"  [usage] first response usage: {dump() if dump else usage}")
++            self._usage_logged = True
++        prompt = getattr(usage, "prompt_tokens_details", None)
++        completion = getattr(usage, "completion_tokens_details", None)
++        self._usage["cached_input_tokens"] += _usage_int(prompt, "cached_tokens") or 0
++        write = _usage_int(prompt, "cache_write_tokens")
++        if write is None:
++            write = _usage_int(usage, "cache_write_tokens")
++        if write is not None:
++            self._cache_write_seen = True
++            self._usage["cache_write_tokens"] += write
++        self._usage["reasoning_tokens"] += _usage_int(completion, "reasoning_tokens") or 0
++
++    def usage_snapshot(self) -> dict:
++        """Totals since the last ``reset_usage``, in the ``token_usage.json`` layout.
++
++        ``uncached_input_tokens`` = input - cache hits, so it still contains the
++        cache writes; price the three input buckets as input - cached - write /
++        cached / write. ``cache_write_tokens`` is None when no response reported it.
++        """
++        u = dict(self._usage)
++        if not self._cache_write_seen:
++            u["cache_write_tokens"] = None
++        u["uncached_input_tokens"] = u["input_tokens"] - u["cached_input_tokens"]
++        u["model"] = self.model
++        u["reasoning_effort"] = self.reasoning_effort
++        return u
+ 
+     def generate(self, prompt_pairs, observations=None, **_kw):
+         del observations, _kw  # see VLLMProvider.generate docstring
++        call_kwargs = {"api_key": self.api_key}
++        if self.reasoning_effort is not None:
++            call_kwargs["reasoning_effort"] = self.reasoning_effort
++        if self._provider == "openai":
++            call_kwargs["on_usage"] = self._record_openai_usage
+         responses: list[str] = []
+         token_counts: list[TokenCounts] = []
+         for system_prompt, user_prompt in prompt_pairs:
+@@ -289,10 +397,12 @@ class APIProvider:
+                     text, counts = self.caller(
+                         system_prompt, user_prompt, self.model,
+                         self.temperature, self.max_new_tokens,
+-                        api_key=self.api_key,
++                        **call_kwargs,
+                     )
+                     break
+                 except Exception as e:  # noqa: BLE001
++                    if _is_fatal_api_error(e):
++                        raise FatalAPIError(f"{type(e).__name__}: {e}") from e
+                     # Two retry classes:
+                     #  - transient (rate limit / timeout / connection / 5xx):
+                     #    full exponential backoff up to ``max_retries``.
+@@ -314,6 +424,7 @@ class APIProvider:
+                         time.sleep(backoff)
+                         continue
+                     print(f"  [WARN] API error: {e}. Using idle fallback.")
++                    self._usage["failed_calls"] += 1
+                     # No ``<action>`` tag → pcbworld_projection returns its
+                     # ``_FALLBACK_ACTION`` (action_type=6, idle) so the env
+                     # applies a no-op step rather than an arbitrary
+@@ -324,6 +435,9 @@ class APIProvider:
+                     )
+                     break
+             in_tok, out_tok = counts
++            self._usage["calls"] += 1
++            self._usage["input_tokens"] += in_tok
++            self._usage["output_tokens"] += out_tok
+             sys_chars = len(system_prompt)
+             usr_chars = len(user_prompt)
+             total_chars = sys_chars + usr_chars
+diff --git a/methods/llm_agent/rollout/pcbworld.py b/methods/llm_agent/rollout/pcbworld.py
+index 5764010..6b2a03c 100644
+--- a/methods/llm_agent/rollout/pcbworld.py
++++ b/methods/llm_agent/rollout/pcbworld.py
+@@ -65,7 +65,10 @@ from __future__ import annotations
+ import argparse
+ import sys
+ import os
++import time
+ 
++from methods._shared.early_stop import NoGeometryProgressGuard
++from methods.llm_agent.policy.model_provider import FatalAPIError, is_openai_reasoning_model
+ from methods.llm_agent.wrappers.action_converter import pcbworld_projection
+ from methods.llm_agent.training.manager import KiCadLLMRolloutManager
+ 
+@@ -125,6 +128,7 @@ def _build_envs(args, board_path: str | None = None):
+             "reward_noise_std":      args.reward_noise_std,
+             "emit_drc_tokens":       not args.no_drc_tokens,
+             "use_yaml_drc_fallback": args.use_yaml_drc_fallback,
++            "outline_obs":           args.outline_obs,
+         },
+     )
+ 
+@@ -293,6 +297,7 @@ def _result_to_canonical_row(
+             "track_count": result.get("track_count", ""),
+             "final_potential": result.get("final_potential", ""),
+             "early_stop": bool(result.get("early_stopped", False)),
++            "early_stop_reason": result.get("early_stop_reason", ""),
+             "system_tokens": result.get("system_tokens", ""),
+             "user_tokens": result.get("user_tokens", ""),
+             "response_tokens": result.get("response_tokens", ""),
+@@ -320,10 +325,29 @@ def _crashed_result(board_id: str, env_i: int) -> dict:
+         "final_potential": nan,
+         "system_tokens": nan, "user_tokens": nan,
+         "response_tokens": nan, "call_count": 0,
+-        "early_stopped": False, "crashed": True,
++        "early_stopped": False, "early_stop_reason": "", "crashed": True,
+     }
+ 
+ 
++def _write_token_usage(dump_dir: str, board_id: str, n_boards: int,
++                       usage: dict, wall_time_s: float) -> str | None:
++    """Write one board's provider token totals next to its episode dumps.
++
++    ``token_usage.json`` for a single-board run (one cell per board), else
++    ``{board_id}_token_usage.json``. Skipped when no call was made in this
++    process (every episode resumed), so a resume never overwrites the totals of
++    the run that did the work.
++    """
++    import json
++    if not usage.get("calls"):
++        return None
++    name = "token_usage.json" if n_boards == 1 else f"{board_id}_token_usage.json"
++    path = os.path.join(dump_dir, name)
++    with open(path, "w") as f:
++        json.dump({**usage, "wall_time_s": round(wall_time_s, 1)}, f, indent=2)
++    return path
++
++
+ def _load_episode_results(
+     dump_dir: str, board_id: str, ep: int, env_num: int
+ ) -> list[dict] | None:
+@@ -369,6 +393,7 @@ def _load_episode_results(
+             "response_tokens": res.get("response_tokens", nan),
+             "call_count": res.get("call_count", 0),
+             "early_stopped": bool(res.get("early_stopped", False)),
++            "early_stop_reason": res.get("early_stop_reason", ""),
+             # None for dumps written before episode-end scoring existed —
+             # the canonical-row mapper then falls back to the env-info
+             # fields above, keeping old dump dirs resumable.
+@@ -620,6 +645,15 @@ def _run_one_episode(
+     no_progress_streak = [0] * args.env_num
+     frozen_obs: list[str | None] = [None] * args.env_num
+     frozen_info: list[dict | None] = [None] * args.env_num
++    early_stop_reason = [""] * args.env_num
++    # Same guard as the RL eval's --early-stop-no-geometry-progress: counts
++    # consecutive steps in which track/via count, wirelength and ratsnest all
++    # stayed put, so an agent that keeps retrying a rejected line/via stops.
++    geometry_guards = (
++        [NoGeometryProgressGuard(threshold=int(args.early_stop_no_geometry_progress))
++         for _ in range(args.env_num)]
++        if args.early_stop_no_geometry_progress > 0 else None
++    )
+     # PCBWorld only stamps board-state measures (track_count,
+     # via_count, wirelength, ratsnest_reduction) on VALID steps — at episode
+     # end (terminated / truncated / early-stop on invalid step) the
+@@ -736,21 +770,32 @@ def _run_one_episode(
+             no_progress_streak[i] = (
+                 0 if progressed else no_progress_streak[i] + 1
+             )
++            geometry_stalled = (
++                geometry_guards is not None
++                and geometry_guards[i].update(info=info_list[i])
++            )
++            if step_dones[i]:
++                continue
+             if (args.early_stop_no_progress > 0
+-                    and no_progress_streak[i] >= args.early_stop_no_progress
+-                    and not step_dones[i]):
+-                print(
+-                    f"  [early-stop][env {i}] non-progress streak "
+-                    f"{no_progress_streak[i]} >= "
+-                    f"{args.early_stop_no_progress} → marking done"
+-                )
+-                # Score at the stop decision (before the freeze copy) so the
+-                # canonical metrics capture the board state being frozen and
+-                # ``eval_metrics`` lands inside the frozen info snapshot.
+-                mgr.mark_episode_done([i], infos=info_list)
+-                frozen_obs[i] = text_obs_list[i]
+-                frozen_info[i] = dict(info_list[i])
+-                dones[i] = True
++                    and no_progress_streak[i] >= args.early_stop_no_progress):
++                reason = "no_progress"
++                detail = (f"non-progress streak {no_progress_streak[i]} >= "
++                          f"{args.early_stop_no_progress}")
++            elif geometry_stalled:
++                reason = "no_geometry_progress"
++                detail = (f"no geometry change for {geometry_guards[i].count} "
++                          f"steps >= {args.early_stop_no_geometry_progress}")
++            else:
++                continue
++            print(f"  [early-stop][env {i}] {detail} → marking done")
++            # Score at the stop decision (before the freeze copy) so the
++            # canonical metrics capture the board state being frozen and
++            # ``eval_metrics`` lands inside the frozen info snapshot.
++            mgr.mark_episode_done([i], infos=info_list)
++            frozen_obs[i] = text_obs_list[i]
++            frozen_info[i] = dict(info_list[i])
++            early_stop_reason[i] = reason
++            dones[i] = True
+ 
+         for i in range(args.env_num):
+             total_rewards[i] += rewards[i]
+@@ -812,6 +857,7 @@ def _run_one_episode(
+             "system_tokens": ep_system_tokens, "user_tokens": ep_user_tokens,
+             "response_tokens": ep_response_tokens, "call_count": ep_call_count,
+             "early_stopped": early_stopped,
++            "early_stop_reason": early_stop_reason[i],
+             # Nested canonical scoring (compute_metrics) from the manager's
+             # episode-end hook; None if scoring failed for this env.
+             "eval_metrics": mgr.episode_scored[i],
+@@ -862,6 +908,7 @@ def _run_one_episode(
+                     final_phi if _is_finite(final_phi) else None
+                 ),
+                 "early_stopped": result_i.get("early_stopped", False),
++                "early_stop_reason": result_i.get("early_stop_reason", ""),
+                 "system_tokens": result_i.get("system_tokens", 0),
+                 "user_tokens": result_i.get("user_tokens", 0),
+                 "response_tokens": result_i.get("response_tokens", 0),
+@@ -926,6 +973,9 @@ def _run_rollout(args, provider) -> None:
+ 
+     canonical_rows: list[dict] = []
+     boards: list[BoardSpec] = []
++    # Providers that keep token totals (APIProvider) get a token_usage.json per board.
++    backend = getattr(provider, "backend", provider)
++    track_usage = bool(args.dump_dir) and hasattr(backend, "usage_snapshot")
+     for board_idx, board_id, _board_path in _iter_boards_with_reload(
+         envs, eval_boards, args.env_num
+     ):
+@@ -933,6 +983,9 @@ def _run_rollout(args, provider) -> None:
+             _print_section(f"Board {board_idx + 1}/{len(eval_boards)}: {board_id}")
+ 
+         board_results: list[dict] = []
++        if track_usage:
++            backend.reset_usage()
++            board_t0 = time.monotonic()
+ 
+         for ep in range(args.rollout_episodes):
+             # Resume: skip episodes already fully dumped (both .json and
+@@ -958,6 +1011,10 @@ def _run_rollout(args, provider) -> None:
+                     prompts_version, extract_think_action, is_no_progress,
+                 )
+                 board_results.extend(ep_results)
++            except FatalAPIError:
++                # Out of credit / bad key / no model access: every later
++                # episode would fail the same way, so end the run here.
++                raise
+             except Exception as e:  # noqa: BLE001
+                 # Worker death (native router SIGSEGV / OOM) or any unexpected
+                 # error: record this episode as crashed (NaN), rebuild the dead
+@@ -981,6 +1038,13 @@ def _run_rollout(args, provider) -> None:
+                     )
+                 continue
+ 
++        if track_usage:
++            written = _write_token_usage(
++                args.dump_dir, board_id, len(eval_boards),
++                backend.usage_snapshot(), time.monotonic() - board_t0,
++            )
++            if written:
++                print(f"  token usage -> {written}")
+         _print_board_summary(board_id, board_results, args)
+         boards.append(BoardSpec(board_idx, board_id, _board_path or ""))
+         for rollout_idx, result in enumerate(board_results):
+@@ -1061,8 +1125,15 @@ def main() -> None:
+         print(f"  api_provider      : {args.api_provider}")
+         print(f"  api_model         : {args.api_model or '(provider default)'}")
+         print(f"  rollout_episodes  : {args.rollout_episodes}")
+-        print(f"  temperature       : {args.temperature}")
++        if args.api_provider == "openai" and is_openai_reasoning_model(
++                args.api_model or ""):
++            print("  temperature       : (not sent — reasoning model)")
++            print(f"  reasoning_effort  : {args.api_reasoning_effort or '(model default)'}")
++        else:
++            print(f"  temperature       : {args.temperature}")
+         print(f"  max_new_tokens    : {args.max_new_tokens}")
++    print(f"  early_stop        : no_progress={args.early_stop_no_progress}  "
++          f"no_geometry_progress={args.early_stop_no_geometry_progress}")
+ 
+     if not os.path.isfile(args.board_path):
+         print(f"\n[ERROR] Board file not found: {args.board_path}")
+diff --git a/methods/llm_agent/wrappers/adapter.py b/methods/llm_agent/wrappers/adapter.py
+index 74741cd..ea09084 100644
+--- a/methods/llm_agent/wrappers/adapter.py
++++ b/methods/llm_agent/wrappers/adapter.py
+@@ -93,6 +93,7 @@ class KiCadLLMWrapper:
+         reward_noise_std: float = 0.0,
+         emit_drc_tokens: bool = True,
+         use_yaml_drc_fallback: bool = False,
++        outline_obs: Optional[str] = None,
+     ) -> None:
+         self.state_format = state_format
+         # Store seed so every reset() re-seeds the env — required for GiGPO
+@@ -112,6 +113,8 @@ class KiCadLLMWrapper:
+             emit_drc_tokens=emit_drc_tokens,
+             use_yaml_drc_fallback=use_yaml_drc_fallback,
+             reward=RewardOverrides(via_penalty=via_penalty),
++            # None keeps the EnvConfig default.
++            **({"outline_obs": outline_obs} if outline_obs is not None else {}),
+         )
+         self._board_path = board_path
+         self.env = self._build_env(board_path)
+diff --git a/methods/llm_agent/wrappers/factory.py b/methods/llm_agent/wrappers/factory.py
+index 67fcb8b..e2edbd3 100644
+--- a/methods/llm_agent/wrappers/factory.py
++++ b/methods/llm_agent/wrappers/factory.py
+@@ -68,6 +68,7 @@ class KiCadLLMVecEnv(RayVecBackend):
+             "reward_noise_std": env_kwargs.get("reward_noise_std", 0.0),
+             "emit_drc_tokens": env_kwargs.get("emit_drc_tokens", True),
+             "use_yaml_drc_fallback": env_kwargs.get("use_yaml_drc_fallback", False),
++            "outline_obs": env_kwargs.get("outline_obs"),
+         }
+ 
+         super().__init__(
+diff --git a/methods/llm_agent/wrappers/prompts/__init__.py b/methods/llm_agent/wrappers/prompts/__init__.py
+index ed0a6cb..74da28e 100644
+--- a/methods/llm_agent/wrappers/prompts/__init__.py
++++ b/methods/llm_agent/wrappers/prompts/__init__.py
+@@ -1,4 +1,4 @@
+-"""Versioned pcbworld prompt templates (v1–v4) + dispatcher."""
++"""Versioned pcbworld prompt templates (one v<N>.py per version) + dispatcher."""
+ 
+ from methods.llm_agent.wrappers.prompts.dispatcher import (
+     PCBWORLD_PROMPT_VERSIONS,
+diff --git a/methods/llm_agent/wrappers/prompts/v7.py b/methods/llm_agent/wrappers/prompts/v7.py
+new file mode 100644
+index 0000000..94f2ab4
+--- /dev/null
++++ b/methods/llm_agent/wrappers/prompts/v7.py
+@@ -0,0 +1,215 @@
++# --------------------- PCBWorld V7 (KiCad PCB Routing) --------------------- #
++#
++# V7 = V6 with every `finish` mention removed, for runs whose masking rule
++# excludes that action (``--masking_rule default_no_finish``). V6 actively told
++# the agent to "prefer `finish <mode>` over a manual `make_line`", which on a
++# board where the engine's finish dispatch comes up empty produces a
++# start_route -> finish -> start_route loop: finish fails, the failure drops the
++# routing state, and the agent re-issues the same pair until the no-progress
++# guard stops the episode. Without the action, the agent draws the last segment
++# with `make_line` instead.
++#
++# Everything else (rejected-attempts handling, history block, response-format
++# rules, six exported symbols) is identical to V6.
++# -----------------------------------------------------------------------------
++
++# ======================================================================
++# Board state format descriptions (same as V1–V5)
++# ======================================================================
++
++_STATE_FORMAT_DESC_XML = """\
++The board state is provided in XML-like format. All floating-point values are rounded to 3 decimal places. Each element is a tag with attributes and optional children: <tag attr=val ... /> or <tag attr=val ...> <child ... /> </tag>.
++
++## board_static — static board context (unchanged during episode)
++  <board_static bbox_x=X bbox_y=Y bbox_w=W bbox_h=H scale=N net_count=N copper_layers=N> — root tag; per-attr description below
++    bbox_x bbox_y bbox_w bbox_h  — board bounding box origin and size in mm
++    scale                        — max(w, h), for normalization reference
++    net_count                    — total number of nets
++    copper_layers                — number of copper layers
++  <boardlines> <edge id="..."> <p1 id="..." x=X y=Y /> <p2 id="..." x=X y=Y /> </edge> ... </boardlines>   — board outline edges; an arc outline entry appears as <arc id="..."> with an extra <mid .../> point on the arc between p1 and p2 (full circle: p1 == p2, mid = opposite point)
++  <nets> <net code=K name="..."> <pads> <pad id="..." x=X y=Y layer=L /> ... </pads> </net> ... </nets>   — nets with pad center positions; layer is a copper layer number (1=Top, N=Bottom) or "th" for a through-hole pad (plated through every copper layer — start_route / make_via may land on any layer)
++  <obstacles> <obs id="..." x=X y=Y size="W H" layer=L /> ... </obstacles>   — static obstacles
++
++## routing_geometry — dynamic per-net routing state (updated every step)
++  <net code=K>
++    <tracks> <track id="..." layer=L> <p1 id="..." x=X y=Y /> <p2 id="..." x=X y=Y /> </track> ... </tracks>   — placed track segments
++    <vias>   <via id="..." layers="start end"> <center id="..." x=X y=Y /> </via> ... </vias>                   — placed vias
++    <points> <point id="..." x=X y=Y /> ... </points>                                                          — unconnected ratsnest targets; layer info not provided (infer from the target pad or nearby tracks)
++  </net>
++
++## router_head — current router cursor state (self-closing tag with these attributes)
++  xy="x y"             — cursor position in mm
++  layer=N              — active copper layer (1=Top)
++  net=N                — currently selected net code (0=none)
++  phase=N              — 0=NET_SELECT, 1=START_ROUTE, 2=ROUTING
++  is_routing=true|false
++  routing_mode="M"     — m=MarkObstacles, p=PushAndShove, w=Walkaround
++       (MarkObstacles: stop at blockers; Walkaround: detour around them; PushAndShove: shove other nets' blocking tracks aside to force the current route through)
++  step="N ratio"       — current step number and step/max_steps ratio"""
++
++_STATE_FORMAT_DESC_SEXPR = """\
++The board state is provided in S-expression format. All floating-point values are rounded to 3 decimal places. Each element is enclosed in parentheses: (tag value ...) or (tag (child ...) ...).
++
++## board_static — static board context (unchanged during episode)
++  (bbox x y w h)          — board bounding box origin and size in mm
++  (scale N)               — max(w, h), for normalization reference
++  (net_count N)           — total number of nets
++  (copper_layers N)       — number of copper layers
++  (boardlines (edge ID (p1 PID x y) (p2 PID x y)) ...)  — board outline edges; an arc outline entry appears as (arc ID (p1 ...) (mid PID x y) (p2 ...)) with mid on the arc between p1 and p2 (full circle: p1 == p2, mid = opposite point)
++  (nets (net CODE "NAME" (pads (pad ID x y layer) ...)) ...)   — nets with pad center positions; layer is a copper layer number (1=Top, N=Bottom) or `th` for a through-hole pad (plated through every copper layer — start_route / make_via may land on any layer)
++  (obstacles (obs ID x y (size w h) (layer N)) ...)      — static obstacles
++
++## routing_geometry — dynamic per-net routing state (updated every step)
++  (net CODE
++    (tracks (track ID (p1 PID x y) (p2 PID x y) (layer N)) ...)  — placed track segments
++    (vias (via ID (center PID x y) (layers start end)) ...)       — placed vias
++    (points (point ID x y) ...))                                  — unconnected ratsnest targets; layer info not provided (infer from the target pad or nearby tracks)
++
++## router_head — current router cursor state
++  (xy x y)             — cursor position in mm
++  (layer N)            — active copper layer (1=Top)
++  (net N)              — currently selected net code (0=none)
++  (phase N)            — 0=NET_SELECT, 1=START_ROUTE, 2=ROUTING
++  (is_routing true|false)
++  (routing_mode M)     — m=MarkObstacles, p=PushAndShove, w=Walkaround
++       (MarkObstacles: stop at blockers; Walkaround: detour around them; PushAndShove: shove other nets' blocking tracks aside to force the current route through)
++  (step N ratio)       — current step number and step/max_steps ratio"""
++
++_STATE_FORMAT_DESCS = {
++    "xml":   _STATE_FORMAT_DESC_XML,
++    "sexpr": _STATE_FORMAT_DESC_SEXPR,
++}
++
++
++def get_state_format_desc(state_format: str = "sexpr") -> str:
++    """Return the board state format description for the given format."""
++    return _STATE_FORMAT_DESCS[state_format]
++
++
++# ======================================================================
++# Shared core blocks — kept minimal by design
++# ======================================================================
++
++_ROLE_AND_PRIORITY = """\
++You are a PCB routing agent for KiCad. Connect unconnected pins (points in routing_geometry) within each net. Never connect pins from different nets.
++
++# Priority
++1. Complete all connections (reduce unconnected points to zero).
++2. Avoid DRC violations (no crossing other nets, respect clearance).
++3. Minimize total wirelength."""
++
++_ROUTING_GUIDELINES = """\
++# Routing Guidelines
++- Targets are the (point ...) entries in routing_geometry; the final segment must land on the target pad's (x, y) while the cursor is on that pad's layer (points carry no layer — look up the pad in board_static or the nearby tracks).
++- Use exact coordinates from the observation (pad positions, point targets, track endpoints). Only invent coordinates for detour waypoints.
++- Avoid static obstacles, board edges, and existing tracks on the same layer (any net, including the current one).
++- When a path is blocked, detour: switch layers with `make_via` (offset ≥1mm from any pad — never place a via on a pad), route around on the opposite layer, then switch back.
++- If a detour looks too long or also blocked, use PushAndShove mode (`p`) on `make_line` / `make_via` to shove other nets' tracks aside and push the current route straight through.
++- When the cursor is already near the remaining target with a clear path, draw the final segment directly with `make_line <x> <y> <mode>` onto the target pad's exact (x, y).
++- When the current net's (points ...) list is empty, the net is done — issue `net_end` explicitly to release it before moving on. Continuing with `make_line` / `make_via` on a completed net wastes steps and may trip the no-progress streak.
++
++## Layer-change detour pattern
++Route from (0, 0) on layer 1 to (10, 10) on layer 1, bypassing an obstacle via layer 2:
++  1. start_route 0.0 0.0 1
++  2. make_via 0.0 0.5 w         # offset off the source pad, then cross to layer 2
++  3. start_route 0.0 0.5 2      # re-enter routing on the new layer
++  4. make_via 10.0 9.5 w        # STOP before the target's (x, y) and cross back
++  5. start_route 10.0 9.5 1     # re-enter routing on the target pad's layer
++  6. make_line 10.0 10.0 w      # final segment lands on the pad, on its own layer
++
++## Do NOT draw or end on a pad from the wrong layer
++Never let `make_line` or `make_via` reach the target pad's exact (x, y) while the cursor is on a different layer than that pad. If you do, you are trapped:
++  - placing a via at the pad violates the "no via on pad" rule, and
++  - the pad is unreachable from the wrong layer, so the final `make_line` cannot land on it.
++Always make the layer-return `make_via` at an offset waypoint (≥1mm away from the target pad) *before* the track arrives at the target's (x, y)."""
++
++_RESPONSE_FORMAT = """\
++# Response Format
++Output exactly one <think>...</think> followed by one <action>...</action>. Never repeat think-action pairs.
++"[no effect]" in history = action made no progress; "Last rejected attempt" below = action was refused. Do not repeat either."""
++
++_RESPONSE_FORMAT_HIS = """\
++# Response Format
++Output exactly one <think>...</think> followed by one <action>...</action> with a valid action. Never repeat think-action pairs.
++"[no effect]" in history = action made no progress; "Last rejected attempt" below = action was refused. Do not repeat either."""
++
++
++# ======================================================================
++# Single-message templates (all content in one user message)
++# ======================================================================
++
++PCBWORLD_TEMPLATE_NO_HIS = f"""
++{_ROLE_AND_PRIORITY}
++
++{_ROUTING_GUIDELINES}
++
++# Board State
++{{state_format_desc}}
++
++{{current_observation}}
++
++# Valid Actions
++Choose exactly one from:
++{{valid_actions}}
++
++{_RESPONSE_FORMAT}
++"""
++
++# ======================================================================
++# Split templates (system + user messages for multi-turn extension)
++# ======================================================================
++
++PCBWORLD_SYSTEM_PROMPT = f"""\
++{_ROLE_AND_PRIORITY}
++
++{_ROUTING_GUIDELINES}
++
++{_RESPONSE_FORMAT}
++
++# Board State
++{{state_format_desc}}
++
++{{board_static}}"""
++
++PCBWORLD_USER_PROMPT_NO_HIS = """\
++{dynamic_observation}
++
++# Valid Actions
++Choose exactly one from:
++{valid_actions}"""
++
++# {rejected_attempts} resolves to "" when there is no rejection streak, in
++# which case the prompt is structurally identical to V5. When non-empty, the
++# renderer (env_manager) supplies leading "\n\n" + a "# Last rejected
++# attempt ..." header so the line sits between History and Valid Actions.
++PCBWORLD_USER_PROMPT = """\
++## Step {current_step}
++{dynamic_observation}
++
++# History (step {current_step}, {valid_step_count} valid actions taken)
++{action_history}{rejected_attempts}
++
++# Valid Actions
++Choose exactly one from:
++{valid_actions}"""
++
++PCBWORLD_TEMPLATE = f"""
++{_ROLE_AND_PRIORITY}
++
++{_ROUTING_GUIDELINES}
++
++# Board State
++{{state_format_desc}}
++
++## Step {{current_step}}
++{{current_observation}}
++
++# History (step {{current_step}}, {{valid_step_count}} valid actions taken)
++{{action_history}}{{rejected_attempts}}
++
++# Valid Actions
++Choose exactly one from:
++{{valid_actions}}
++
++{_RESPONSE_FORMAT_HIS}
++"""
+diff --git a/methods/rl_agent/rollout/transformer.py b/methods/rl_agent/rollout/transformer.py
+index 47cb463..01818e8 100644
+--- a/methods/rl_agent/rollout/transformer.py
++++ b/methods/rl_agent/rollout/transformer.py
+@@ -1,5 +1,6 @@
+ """Policy rollout loop: ``_run_one_batch`` + supporting machinery (per-board
+-rollout, early-stop guards, per-rollout row assembly). The per-step act+step
++rollout, per-rollout row assembly; the early-stop guards are shared with the
++LLM rollout in :mod:`methods._shared.early_stop`). The per-step act+step
+ transition itself is the shared primitive
+ :func:`methods.rl_agent.rollout.primitive.iter_rollout`; the eval-side thin
+ driver ``eval_transformer`` lives in ``eval/rollout/rl.py``.
+@@ -8,7 +9,6 @@ from __future__ import annotations
+ 
+ import math
+ import time
+-from dataclasses import dataclass
+ from pathlib import Path
+ from typing import Any
+ 
+@@ -16,6 +16,7 @@ import torch
+ 
+ from eval import eval_utils as u
+ from methods._shared.board_loader import BoardSpec
++from methods._shared.early_stop import FinishNoProgressGuard, NoGeometryProgressGuard
+ from pcb_world.core.action_schema import ACTION_NAMES, ACT_IDLE
+ from methods.rl_agent.rollout.primitive import iter_rollout
+ 
+@@ -74,88 +75,6 @@ def _board_net_count_from_obs(obs: dict[str, Any]) -> int:
+     return len(nets) if isinstance(nets, dict) else 0
+ 
+ 
+-# ============================================================================
+-# Early-stop guard
+-# ============================================================================
+-
+-
+-def _float_or_nan(value: Any) -> float:
+-    try:
+-        return float(value)
+-    except (TypeError, ValueError):
+-        return math.nan
+-
+-
+-def _geometry_signature(info: dict[str, Any]) -> tuple[float, float, float, float] | None:
+-    vals = (
+-        _float_or_nan(info.get("track_count")),
+-        _float_or_nan(info.get("via_count")),
+-        _float_or_nan(info.get("wirelength")),
+-        _float_or_nan(info.get("ratsnest_reduction")),
+-    )
+-    if all(math.isnan(v) for v in vals):
+-        return None
+-    return vals
+-
+-
+-def _geometry_changed(
+-    prev: tuple[float, float, float, float] | None,
+-    cur: tuple[float, float, float, float] | None,
+-) -> bool:
+-    if prev is None or cur is None:
+-        return False
+-    for a, b in zip(prev, cur):
+-        if math.isnan(a) or math.isnan(b):
+-            continue
+-        if abs(a - b) > 1e-9:
+-            return True
+-    return False
+-
+-
+-@dataclass
+-class FinishNoProgressGuard:
+-    """Track consecutive ``finish`` attempts that failed without geometry change."""
+-    threshold: int = 0
+-    count: int = 0
+-    last_geometry: tuple[float, float, float, float] | None = None
+-
+-    def update(
+-        self, *, action_name: str, action_class: str, info: dict[str, Any],
+-    ) -> bool:
+-        cur = _geometry_signature(info)
+-        if _geometry_changed(self.last_geometry, cur):
+-            self.count = 0
+-        if cur is not None:
+-            self.last_geometry = cur
+-        if action_name == "finish" and action_class in {
+-            "valid_dispatch_fail", "valid_empty",
+-        }:
+-            self.count += 1
+-        return self.threshold > 0 and self.count >= self.threshold
+-
+-
+-@dataclass
+-class NoGeometryProgressGuard:
+-    """Track consecutive steps with no observed geometry metric change."""
+-    threshold: int = 0
+-    count: int = 0
+-    last_geometry: tuple[float, float, float, float] | None = None
+-
+-    def update(self, *, info: dict[str, Any]) -> bool:
+-        cur = _geometry_signature(info)
+-        if cur is None:
+-            return self.threshold > 0 and self.count >= self.threshold
+-        if self.last_geometry is None:
+-            self.last_geometry = cur
+-            return False
+-        if _geometry_changed(self.last_geometry, cur):
+-            self.count = 0
+-        else:
+-            self.count += 1
+-        self.last_geometry = cur
+-        return self.threshold > 0 and self.count >= self.threshold
+-
+-
+ # ============================================================================
+ # Per-rollout row construction
+ # ============================================================================
+diff --git a/tests/test_llm_api_provider.py b/tests/test_llm_api_provider.py
+new file mode 100644
+index 0000000..41388bb
+--- /dev/null
++++ b/tests/test_llm_api_provider.py
+@@ -0,0 +1,198 @@
++"""OpenAI request shape, error handling and token accounting of the API provider (no network).
++
++The OpenAI client is replaced by a fake that records the request, so these
++tests pin what a reasoning-model run (e.g. gpt-6-astra) actually sends, that
++an out-of-credit / bad-key error stops the run instead of being turned into
++idle steps, and the per-board ``token_usage.json`` layout.
++"""
++from types import SimpleNamespace
++
++import pytest
++
++from methods.llm_agent.policy import model_provider as mp
++
++
++class _FakeOpenAI:
++    """Stands in for ``openai.OpenAI``; records the last create() kwargs."""
++    last_kwargs: dict = {}
++
++    def __init__(self, **_client_kwargs):
++        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
++
++    def _create(self, **kwargs):
++        type(self).last_kwargs = kwargs
++        return SimpleNamespace(
++            choices=[SimpleNamespace(message=SimpleNamespace(content="<think>t</think>"))],
++            usage=SimpleNamespace(prompt_tokens=11, completion_tokens=7),
++        )
++
++
++@pytest.fixture
++def fake_openai(monkeypatch):
++    monkeypatch.setattr("openai.OpenAI", _FakeOpenAI)
++    return _FakeOpenAI
++
++
++def test_gpt6_takes_reasoning_request_shape(fake_openai):
++    mp._call_openai("SYS", "USR", "gpt-6-astra", 0.7, 4000,
++                    reasoning_effort="medium")
++    kw = fake_openai.last_kwargs
++    assert [m["role"] for m in kw["messages"]] == ["developer", "user"]
++    assert kw["max_completion_tokens"] == 4000 and "max_tokens" not in kw
++    assert "temperature" not in kw
++    assert kw["reasoning_effort"] == "medium"
++
++
++def test_chat_model_keeps_temperature_and_max_tokens(fake_openai):
++    mp._call_openai("SYS", "USR", "gpt-4o", 0.7, 256)
++    kw = fake_openai.last_kwargs
++    assert [m["role"] for m in kw["messages"]] == ["system", "user"]
++    assert kw["temperature"] == 0.7 and kw["max_tokens"] == 256
++    assert "reasoning_effort" not in kw
++
++
++def _provider_args(**over):
++    base = dict(api_provider="openai", api_model="gpt-6-astra", temperature=0.7,
++                max_new_tokens=4000, api_key=None, api_reasoning_effort=None)
++    base.update(over)
++    return SimpleNamespace(**base)
++
++
++@pytest.mark.parametrize("provider,model", [("openai", "gpt-4o"),
++                                            ("anthropic", "claude-sonnet-4-20250514")])
++def test_reasoning_effort_rejected_where_it_cannot_apply(provider, model):
++    with pytest.raises(ValueError, match="api_reasoning_effort"):
++        mp.APIProvider(_provider_args(api_provider=provider, api_model=model,
++                                      api_reasoning_effort="medium"))
++
++
++def test_provider_forwards_reasoning_effort():
++    seen = {}
++
++    def caller(*_a, **kw):
++        seen.update(kw)
++        return "<think>t</think>", (10, 5)
++
++    p = mp.APIProvider(_provider_args(api_reasoning_effort="medium"))
++    p.caller = caller
++    p.generate([("SYS", "USR")])
++    assert seen["reasoning_effort"] == "medium"
++
++
++class RateLimitError(Exception):
++    """Named like the OpenAI SDK class so the marker match sees the same text."""
++
++
++def test_out_of_credit_raises_instead_of_idle():
++    calls = []
++
++    def caller(*_a, **_kw):
++        calls.append(1)
++        raise RateLimitError("Error code: 429 - {'error': {'message': 'You exceeded "
++                             "your current quota', 'code': 'insufficient_quota'}}")
++
++    p = mp.APIProvider(_provider_args())
++    p.caller = caller
++    with pytest.raises(mp.FatalAPIError, match="insufficient_quota"):
++        p.generate([("SYS", "USR")])
++    assert len(calls) == 1          # no retry budget burnt
++
++
++def test_rate_limit_is_still_retried(monkeypatch):
++    monkeypatch.setattr(mp.time, "sleep", lambda _s: None)
++    outcomes = [RateLimitError("Error code: 429 - Rate limit reached for requests"),
++                ("<think>t</think><action>net_end</action>", (10, 5))]
++
++    def caller(*_a, **_kw):
++        out = outcomes.pop(0)
++        if isinstance(out, Exception):
++            raise out
++        return out
++
++    p = mp.APIProvider(_provider_args())
++    p.caller = caller
++    responses, _ = p.generate([("SYS", "USR")])
++    assert responses == ["<think>t</think><action>net_end</action>"]
++
++
++# Key order of token_usage.json.
++_TOKEN_USAGE_KEYS = ["calls", "failed_calls", "input_tokens", "cached_input_tokens",
++                     "cache_write_tokens", "output_tokens", "reasoning_tokens",
++                     "uncached_input_tokens", "model", "reasoning_effort", "wall_time_s"]
++
++
++def _usage(prompt, completion, cached, write, reasoning):
++    details = SimpleNamespace(cached_tokens=cached)
++    if write is not None:
++        details.cache_write_tokens = write
++    return SimpleNamespace(prompt_tokens=prompt, completion_tokens=completion,
++                           prompt_tokens_details=details,
++                           completion_tokens_details=SimpleNamespace(reasoning_tokens=reasoning))
++
++
++def _accounting_provider(usages):
++    p = mp.APIProvider(_provider_args(api_reasoning_effort="medium"))
++    queue = list(usages)
++
++    def caller(*_a, on_usage=None, **_kw):
++        u = queue.pop(0)
++        if isinstance(u, Exception):
++            raise u
++        on_usage(u)
++        return "<think>t</think>", (u.prompt_tokens, u.completion_tokens)
++
++    p.caller = caller
++    return p
++
++
++def test_openai_usage_split_is_accumulated():
++    p = _accounting_provider([_usage(1000, 40, 0, 1000, 5), _usage(1100, 60, 1000, 100, 15)])
++    p.generate([("S", "U"), ("S", "U")])
++    u = p.usage_snapshot()
++    assert (u["calls"], u["failed_calls"]) == (2, 0)
++    assert (u["input_tokens"], u["cached_input_tokens"], u["cache_write_tokens"]) == (2100, 1000, 1100)
++    assert (u["output_tokens"], u["reasoning_tokens"]) == (100, 20)
++    assert u["uncached_input_tokens"] == 1100          # input - cache hits (includes writes)
++    assert (u["model"], u["reasoning_effort"]) == ("gpt-6-astra", "medium")
++    p.reset_usage()
++    assert p.usage_snapshot()["calls"] == 0
++
++
++def test_failed_call_is_counted():
++    p = _accounting_provider([ValueError("Error code: 400 - bad request")])
++    p.generate([("S", "U")])
++    u = p.usage_snapshot()
++    assert (u["calls"], u["failed_calls"], u["input_tokens"]) == (1, 1, 0)
++
++
++def test_unreported_cache_write_stays_none():
++    p = _accounting_provider([_usage(1000, 40, 0, None, 0)])
++    p.generate([("S", "U")])
++    assert p.usage_snapshot()["cache_write_tokens"] is None
++
++
++def test_call_openai_hands_usage_to_hook(fake_openai):
++    seen = []
++    mp._call_openai("SYS", "USR", "gpt-6-astra", 0.7, 4000, on_usage=seen.append)
++    assert seen and seen[0].prompt_tokens == 11
++
++
++def test_token_usage_json_layout(tmp_path):
++    import json
++    from methods.llm_agent.rollout.pcbworld import _write_token_usage
++    p = _accounting_provider([_usage(1000, 40, 0, 1000, 5)])
++    p.generate([("S", "U")])
++    path = _write_token_usage(str(tmp_path), "0225", 1, p.usage_snapshot(), 12.34)
++    assert path.endswith("/token_usage.json")
++    doc = json.load(open(path))
++    assert list(doc) == _TOKEN_USAGE_KEYS and doc["wall_time_s"] == 12.3
++    # multi-board dump dir: one file per board
++    assert _write_token_usage(str(tmp_path), "0225", 3, p.usage_snapshot(), 1.0).endswith(
++        "/0225_token_usage.json")
++
++
++def test_resumed_board_keeps_earlier_token_usage(tmp_path):
++    from methods.llm_agent.rollout.pcbworld import _write_token_usage
++    p = _accounting_provider([])
++    assert _write_token_usage(str(tmp_path), "0225", 1, p.usage_snapshot(), 1.0) is None
++    assert not (tmp_path / "token_usage.json").exists()
+diff --git a/tests/test_llm_env_outline.py b/tests/test_llm_env_outline.py
+new file mode 100644
+index 0000000..1e033a4
+--- /dev/null
++++ b/tests/test_llm_env_outline.py
+@@ -0,0 +1,27 @@
++"""``--outline_obs`` reaches the LLM env's EnvConfig; unset keeps the env default."""
++import pytest
++
++from configs.loader.schema import EnvConfig
++
++
++def _wrapper(monkeypatch, **kw):
++    from methods.llm_agent.wrappers.adapter import KiCadLLMWrapper
++    # Skip the engine: only the EnvConfig the wrapper would build is under test.
++    monkeypatch.setattr(KiCadLLMWrapper, "_build_env", lambda self, board_path: None)
++    return KiCadLLMWrapper(board_path="b.kicad_pcb", max_steps=10, masking_rule="strict",
++                           reward_rule="default", seed=0, **kw)
++
++
++@pytest.mark.parametrize("mode", ["tess", "arc"])
++def test_outline_obs_reaches_env_config(monkeypatch, mode):
++    assert _wrapper(monkeypatch, outline_obs=mode)._env_config.outline_obs == mode
++
++
++def test_unset_outline_obs_keeps_env_default(monkeypatch):
++    assert _wrapper(monkeypatch)._env_config.outline_obs == EnvConfig().outline_obs
++
++
++def test_flag_is_on_the_llm_eval_parser():
++    from eval.args import build_eval_parser
++    assert build_eval_parser().parse_args(["--outline_obs", "tess"]).outline_obs == "tess"
++    assert build_eval_parser().parse_args([]).outline_obs is None
+diff --git a/tests/test_llm_prompt_versions.py b/tests/test_llm_prompt_versions.py
+new file mode 100644
+index 0000000..0a43aa9
+--- /dev/null
++++ b/tests/test_llm_prompt_versions.py
+@@ -0,0 +1,18 @@
++"""Prompt v7 = v6 without the ``finish`` action (for ``default_no_finish`` masking)."""
++from methods.llm_agent.wrappers.prompts import PCBWORLD_PROMPT_VERSIONS, get_pcbworld_prompts
++
++_FIELDS = ("PCBWORLD_SYSTEM_PROMPT", "PCBWORLD_USER_PROMPT_NO_HIS",
++           "PCBWORLD_USER_PROMPT", "PCBWORLD_TEMPLATE_NO_HIS", "PCBWORLD_TEMPLATE")
++
++
++def test_v7_is_selectable():
++    assert "v7" in PCBWORLD_PROMPT_VERSIONS
++    assert get_pcbworld_prompts("v7").version == "v7"
++
++
++def test_v7_never_offers_finish():
++    v6, v7 = get_pcbworld_prompts("v6"), get_pcbworld_prompts("v7")
++    text = "\n".join(getattr(v7, f) for f in _FIELDS)
++    assert "finish" not in text
++    # v6 does mention it, so the check above is not vacuous
++    assert "finish" in "\n".join(getattr(v6, f) for f in _FIELDS)
+diff --git a/tests/test_llm_rollout_early_stop.py b/tests/test_llm_rollout_early_stop.py
+new file mode 100644
+index 0000000..341621a
+--- /dev/null
++++ b/tests/test_llm_rollout_early_stop.py
+@@ -0,0 +1,110 @@
++"""The shared geometry early-stop guard and its wiring into the LLM rollout.
++
++``NoGeometryProgressGuard`` is the RL eval's guard; the LLM rollout exposes the
++same guard as ``--early_stop_no_geometry_progress``. The rollout test drives
++``_run_one_episode`` with a fake manager whose board never changes, so no
++engine or API is needed.
++"""
++from types import SimpleNamespace
++
++from methods._shared.early_stop import NoGeometryProgressGuard
++
++_STALL = {"track_count": 4, "via_count": 1, "wirelength": 12.5,
++          "ratsnest_reduction": 0.5}
++
++
++def test_guard_counts_unchanged_steps_and_resets_on_change():
++    g = NoGeometryProgressGuard(threshold=3)
++    assert g.update(info=_STALL) is False          # first sighting: baseline
++    assert g.update(info=_STALL) is False and g.count == 1
++    assert g.update(info={**_STALL, "wirelength": 13.0}) is False and g.count == 0
++    assert g.update(info={**_STALL, "wirelength": 13.0}) is False
++    assert g.update(info={**_STALL, "wirelength": 13.0}) is False
++    assert g.update(info={**_STALL, "wirelength": 13.0}) is True and g.count == 3
++
++
++def test_guard_ignores_steps_without_geometry():
++    """Invalid steps carry no measures; they neither count nor reset."""
++    g = NoGeometryProgressGuard(threshold=1)
++    g.update(info=_STALL)
++    assert g.update(info={"action_success": False}) is False and g.count == 0
++    assert g.update(info=_STALL) is True
++
++
++class _StalledManager:
++    """Fake KiCadLLMRolloutManager: every step is a valid, board-unchanging one."""
++
++    def __init__(self, max_steps):
++        self.effective_max_steps = max_steps
++        self.episode_scored = [None]
++        self.marked_done = []
++        self._last_actions = [{}]
++        self._last_valids = [True]
++
++    @staticmethod
++    def _obs():
++        return {"anchor": ["obs"], "system": ["sys"], "text": ["usr"]}
++
++    def reset(self):
++        return self._obs(), [dict(_STALL)]
++
++    def step(self, _outputs):
++        info = {**_STALL, "action_success": True}
++        return self._obs(), [0.0], [False], [info]
++
++    def mark_episode_done(self, idx, infos):
++        self.marked_done.extend(idx)
++
++    def finalize_episode(self, infos):
++        pass
++
++    def build_text_obs(self, obs, action_masks, init):
++        return ["sys"], ["final"]
++
++
++class _Provider:
++    def generate(self, prompt_pairs):
++        return ["<think>t</think><action>make_line 1 1 w</action>"], [(1, 1, 1)]
++
++
++def _run(threshold, max_steps=20):
++    from methods.llm_agent.rollout.pcbworld import _run_one_episode
++    args = SimpleNamespace(env_num=1, max_steps=max_steps, verbose=False,
++                           dump_dir=None, early_stop_no_progress=0,
++                           early_stop_no_geometry_progress=threshold)
++    mgr = _StalledManager(max_steps)
++    (result,) = _run_one_episode(
++        args, _Provider(), mgr, None, "b0", "b0.kicad_pcb", 0, "v7",
++        extract_think_action=None, is_no_progress=lambda _info: False,
++    )
++    return result, mgr
++
++
++def test_llm_rollout_stops_on_stalled_geometry():
++    result, mgr = _run(threshold=3)
++    # step 0 sets the baseline, steps 1..3 are unchanged -> stop after 4 steps
++    assert result["steps"] == 4
++    assert result["early_stopped"] is True
++    assert result["early_stop_reason"] == "no_geometry_progress"
++    assert mgr.marked_done == [0]
++
++
++def test_llm_rollout_guard_off_runs_to_max_steps():
++    result, _ = _run(threshold=0, max_steps=6)
++    assert result["steps"] == 6 and result["early_stopped"] is False
++    assert result["early_stop_reason"] == ""
++
++
++def test_early_stop_reason_reaches_canonical_row():
++    from methods.llm_agent.rollout.pcbworld import _result_to_canonical_row
++    result, _ = _run(threshold=3)
++    row = _result_to_canonical_row(result, board_index=0, board_path="b0.kicad_pcb",
++                                   rollout_idx=0)
++    assert row["early_stop"] is True
++    assert row["early_stop_reason"] == "no_geometry_progress"
++
++
++def test_flag_is_on_the_llm_eval_parser():
++    from eval.args import build_eval_parser
++    args = build_eval_parser().parse_args(["--early_stop_no_geometry_progress", "10"])
++    assert args.early_stop_no_geometry_progress == 10
