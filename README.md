@@ -82,13 +82,13 @@ Requirements: Linux x86_64, Python 3.12, one CUDA GPU for training and evaluatio
 **Install**
 
 ```bash
-bash setup.sh                 # clones PCBWorld v1.0.1, creates its conda env, builds the engine
-conda activate pcbworld
+bash setup.sh                 # clones PCBWorld v1.0.1, creates the conda env `cadet`, builds the engine
+conda activate cadet
 source ./env.sh
 python -m pytest cadet/tests -q
 ```
 
-`setup.sh` accepts `PCBWORLD_ROOT=<checkout>` for an existing PCBWorld v1.0.1 installation.
+`setup.sh` accepts `PCBWORLD_ENV=<name>` for another env name, and `PCBWORLD_ROOT=<checkout>` for an existing PCBWorld v1.0.1 installation (activate that installation's env instead).
 
 **Checkpoints**
 
