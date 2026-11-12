@@ -23,7 +23,39 @@ This repository holds
   human-reference rows,
 - the D3-B ref / test split and the reference statistics.
 
-Contents: [Layout](#layout) · [Setup](#setup) · [Pipeline](#pipeline) · [Licensing](#licensing) · [Contact](#contact)
+Contents: [Results](#results) · [Layout](#layout) · [Setup](#setup) · [Pipeline](#pipeline) · [Licensing](#licensing) · [Contact](#contact)
+
+## Results
+
+Real test boards, from the paper's main table. CADET is averaged over four training seeds.
+
+**D3-B test (141 boards)**
+
+| Method | Type | CP (%) | ΔΦ | Rout. (%) | Time (s/board) |
+|---|---|---:|---:|---:|---:|
+| FreeRouting @1 | Rule-based | 65.6 | 119.33 | **96.8** | 45.6 |
+| GPT-6 Astra @1 | LLM | 56.0 | 104.20 | 86.0 | 491.7 |
+| GPT-6 Luna @1 | LLM | 5.0 | 37.72 | 47.9 | 335.7 |
+| CADET @1 | BC+RL | 67.2 | 107.22 | 91.7 | **15.5** |
+| CADET @3 | BC+RL | **79.8** | **121.30** | 95.9 | 47.6 |
+
+**D3-A (99 boards)**
+
+| Method | Type | CP (%) | ΔΦ | Rout. (%) | Time (s/board) |
+|---|---|---:|---:|---:|---:|
+| FreeRouting @1 | Rule-based | 82.1 | 46.05 | 97.7 | 8.6 |
+| GPT-6 Astra @1 | LLM | 83.8 | 45.03 | 93.8 | 138.9 |
+| GPT-6 Luna @1 | LLM | 46.5 | 31.30 | 78.5 | 179.1 |
+| CADET @1 | BC+RL | 89.5 | 45.13 | 96.6 | **4.2** |
+| CADET @3 | BC+RL | **96.3** | **48.87** | **99.2** | 12.3 |
+
+- **CP** (clean pass): the fraction of boards with all connections completed and zero error-severity DRC violations.
+- **ΔΦ**: the potential gain over the unrouted board.
+- **Rout.** (routability): the fraction of required connections completed.
+- **@k**: the best of k rollouts.
+
+Bold marks the best value per column of each table. The paper's table also has the human reference, KRT and the PPO
+baseline.
 
 ## Layout
 
