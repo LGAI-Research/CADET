@@ -1,5 +1,6 @@
 # CADET: Construction of PCB Routing Instances with Executable Demonstrations
 
+[![Paper](https://img.shields.io/badge/Paper-PDF-B31B1B)](CADET.pdf)
 [![Checkpoints](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Checkpoints-FFD21E)](https://huggingface.co/LG-AI-Research/CADET)
 [![PCBWorld](https://img.shields.io/badge/PCBWorld-v1.0.1-blue)](https://github.com/LGAI-Research/PCBWorld/tree/v1.0.1)
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-green)](LICENSE)
@@ -9,6 +10,7 @@ Code of CADET, from LG AI Research.
 CADET builds PCB routing instances together with demonstrations that are executable in the routing engine, trains a
 policy on them by behavior cloning (BC), and fine-tunes it with PPO.
 
+- **Paper**: [CADET.pdf](CADET.pdf) (preprint).
 - **Trained policies**: the six checkpoints behind the result tables are on Hugging Face,
   [LG-AI-Research/CADET](https://huggingface.co/LG-AI-Research/CADET) (download: [Setup](#setup)).
 - **Environment**: [PCBWorld](https://github.com/LGAI-Research/PCBWorld) **v1.0.1** (cited in the paper). Its
@@ -73,6 +75,7 @@ cadet/
   tests/
 checkpoints/    policy weights and their training arguments, downloaded from Hugging Face (not in this repository)
 setup.sh, env.sh   PCBWorld installation and the environment of every command below
+CADET.pdf       the paper (preprint)
 ```
 
 ## Setup
@@ -247,6 +250,8 @@ python cadet/eval/table.py --n-boards 141 --init var/cells/cadet_d3b_test \
 ## Licensing
 
 The code in this repository is licensed under [BSD-3-Clause](LICENSE). Third-party notices: [Notice.md](Notice.md).
+
+The paper ([CADET.pdf](CADET.pdf)) is included for reference and is not covered by the code license.
 
 The checkpoints are licensed separately from this code, under the EXAONE AI Model License Agreement 1.2 - NC:
 research and educational use only, with no commercial use of the checkpoints or of their output (see the license in the
